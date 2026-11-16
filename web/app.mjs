@@ -148,8 +148,8 @@ async function checkRelease(row) {
     let version;
     if (row.ecosystem === 'Packagist') {
       const path = row.name.split('/').map(encodeURIComponent).join('/');
-      const data = await fetchJSON('https://repo.packagist.org/p2/' + path + '.json',task.signal);
-      const history = data?.packages?.[row.name] ?? [];
+      const data = await fetchJSON('https://packagist.org/packages/' + path + '.json',task.signal);
+      const history = Object.values(data?.package?.versions ?? {});
       version = history.map(record=>record.version).filter(ver=>plainVersion(ver)).sort((a,b)=>comparePlain(b,a))[0];
     } else {
       const service = row.ecosystem === 'npm' ? 'npm' : 'pypi';
