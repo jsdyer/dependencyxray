@@ -25,9 +25,16 @@
 <p class="muted">Review the rows and exclude private packages before scanning. OSV receives the selected package names, ecosystems, and exact versions. Release checks contact the selected registry separately.</p>
 <div class="row spread"><div class="row"><button id="scan" class="primary">Check selected on OSV</button><button id="cancel" hidden>Cancel lookup</button></div><button id="export">Download local report</button></div>
 <p class="status" id="scan-status" role="status"></p>
+<details class="stack"><summary>Compare with an earlier lockfile</summary>
+<p class="muted">Choose a previous version of the same lockfile. Both files stay in your browser. Version changes identify different installed versions and do not evaluate upgrade compatibility.</p>
+<label class="field">Earlier lockfile or manifest<input id="baseline-file" type="file" accept=".json,.lock,.txt"></label>
+<p id="baseline-status" class="status" role="status">No earlier inventory loaded.</p>
+<div id="baseline-removed"></div>
+</details>
 <div class="row">
 <label class="field">Filter exact packages<input type="search" id="filter" maxlength="100" placeholder="laravel, npm or 4.17"></label>
 <label class="field">Finding<select id="finding"><option value="">All findings</option><option value="vulnerable">Advisory matches</option><option value="checked">No OSV matches</option><option value="unchecked">Awaiting lookup</option></select></label>
+<label class="field">Inventory change<select id="change-filter" disabled><option value="">All changes</option><option value="added">New packages</option><option value="changed">New versions</option><option value="unchanged">Unchanged versions</option></select></label>
 </div>
 <div class="row"><button id="select-filtered">Select filtered</button><button id="deselect-filtered">Deselect filtered</button><span id="filtered-count" class="muted"></span></div>
 <div class="table" tabindex="0" aria-label="Installed package versions"><table><thead><tr><th scope="col">Send to OSV</th><th scope="col">Package version</th><th scope="col">Advisories</th><th scope="col">Release</th></tr></thead><tbody id="rows"></tbody></table></div>

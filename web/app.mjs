@@ -1,9 +1,9 @@
-import { parseInventory, MAX_BYTES, comparePlain, plainVersion, vulnURL } from './model.mjs';
+import { parseInventory, MAX_BYTES, comparePlain, plainVersion, vulnURL, compareInventories } from './model.mjs';
 
 const $ = id => document.getElementById(id);
 const batchURL = 'https://api.osv.dev/v1/querybatch';
 const pageSize = 30;
-let inventory, page = 0, scanTask, releaseTasks = new Map(), scanAt;
+let inventory, page = 0, scanTask, releaseTasks = new Map(), scanAt, baseline, comparison, baselineRead = 0;
 const selected = new Set(), results = new Map(), releases = new Map();
 
 function node(tag, content, className) {
@@ -38,6 +38,13 @@ function openInventory(next) {
   releases.clear();
   scanAt = null;
   inventory = next;
+  baseline = comparison = null;
+  baselineRead++;
+  $('baseline-file').value = '';
+  $('baseline-removed').replaceChildren();
+  $('change-filter').value = '';
+  $('change-filter').disabled = true;
+  report('baseline-status', 'No earlier inventory loaded.');
   page = 0;
   for (const row of next.packages) selected.add(row.key);
   $('filter').value = '';
@@ -56,10 +63,10 @@ function load(text, name) {
 
 function filteredRows() {
   const tokens = $('filter').value.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  const finding = $('finding').value;
+  const finding = $('finding').value, change = $('change-filter').value;
   return (inventory?.packages ?? []).filter(row => {
     const status = !results.has(row.key) ? 'unchecked' : results.get(row.key).length ? 'vulnerable' : 'checked';
-    return (!finding || finding === status) && tokens.every(token => (row.ecosystem+' '+row.name+' '+row.version+' '+row.scope).toLowerCase().includes(token));
+    return (!finding || finding === status) && (!change || comparison?.changes.get(row.key) === change) && tokens.every(token => (row.ecosystem+' '+row.name+' '+row.version+' '+row.scope).toLowerCase().includes(token));
   });
 }
 
@@ -106,6 +113,10 @@ function renderRow(row) {
   });
   choice.append(checkbox);
   info.append(node('strong',row.name),node('span',row.ecosystem + ' · ' + row.version + ' · ' + row.scope,'muted'));
+  if (comparison) {
+    const change = comparison.changes.get(row.key);
+    info.append(node('span', {added:'New package', changed:'New version', unchanged:'Unchanged version'}[change], 'badge'));
+  }
   const records = results.get(row.key);
   if (records?.length) {
     const details = node('details');
@@ -220,6 +231,9 @@ function exportReport() {
   const blob = new Blob([JSON.stringify({
     format: inventory.format, scannedAt: scanAt, skipped: inventory.skipped,
     packages: inventory.packages.map(({key,...row})=>({...row,advisories:results.get(key) ?? null,registryRelease:releases.get(key)?.version ?? null})),
+    comparison: comparison ? {baselineFormat:baseline.format, baselineSkipped:baseline.skipped,
+      currentVersions:inventory.packages.map(row=>({ecosystem:row.ecosystem,name:row.name,version:row.version,status:comparison.changes.get(row.key)})),
+      removedVersions:comparison.removed} : null,
   },null,2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = node('a');
@@ -229,6 +243,41 @@ function exportReport() {
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 let fileRead = 0;
+$('baseline-file').addEventListener('change', async event => {
+  const file = event.target.files[0], attempt = ++baselineRead;
+  if (!file) return;
+  baseline = comparison = null;
+  $('baseline-removed').replaceChildren();
+  $('change-filter').value = '';
+  $('change-filter').disabled = true;
+  render();
+  if (file.size > MAX_BYTES) { report('baseline-status','The earlier file exceeds the 4 MiB limit.',true); return; }
+  try {
+    const text = await file.text();
+    if (attempt !== baselineRead) return;
+    const next = parseInventory(text, file.name);
+    if (!next.packages.length) throw new Error('The earlier file has no supported exact versions.');
+    if (next.format !== inventory.format) throw new Error('Use the same file format for both inventories.');
+    baseline = next;
+    comparison = compareInventories(inventory.packages, baseline.packages);
+    const counts = [...comparison.changes.values()].reduce((total, status) => {
+      total[status] = (total[status] ?? 0) + 1;
+      return total;
+    }, {});
+    report('baseline-status', `${counts.added ?? 0} new packages · ${counts.changed ?? 0} new versions · ${counts.unchanged ?? 0} unchanged versions · ${comparison.removed.length} earlier versions no longer present. Earlier file skipped ${baseline.skipped} entries.`);
+    const details = node('details');
+    details.append(node('summary', 'Earlier versions no longer present (' + comparison.removed.length + ')'));
+    const list = node('ul', undefined, 'list');
+    for (const row of comparison.removed) list.append(node('li', row.ecosystem + ' · ' + row.name + ' ' + row.version + ' · ' + row.status));
+    details.append(list);
+    $('baseline-removed').replaceChildren(details);
+    $('change-filter').disabled = false;
+    page = 0;
+    render();
+  } catch (error) {
+    if (attempt === baselineRead) report('baseline-status', error.message || 'The earlier file could not be read.', true);
+  }
+});
 $('file').addEventListener('change',async event=>{
   const file = event.target.files[0], attempt = ++fileRead;
   if (!file) return;
@@ -248,7 +297,7 @@ $('sample').addEventListener('click',()=>{
 $('scan').addEventListener('click',scan);
 $('cancel').addEventListener('click',()=>scanTask?.abort());
 $('export').addEventListener('click',exportReport);
-for (const id of ['filter','finding']) $(id).addEventListener('input',()=>{page=0;render();});
+for (const id of ['filter','finding','change-filter']) $(id).addEventListener('input',()=>{page=0;render();});
 $('select-filtered').addEventListener('click',()=>{for (const row of filteredRows()) selected.add(row.key);render();});
 $('deselect-filtered').addEventListener('click',()=>{for (const row of filteredRows()) selected.delete(row.key);render();});
 $('previous').addEventListener('click',()=>{if(page){page--;render();}});

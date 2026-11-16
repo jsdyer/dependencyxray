@@ -118,3 +118,30 @@ export function comparePlain(a,b) {
 export function vulnURL(id) {
   return 'https://osv.dev/vulnerability/' + encodeURIComponent(id);
 }
+
+// Group by ecosystem and package name so multiple installed versions remain visible.
+export function compareInventories(current, baseline) {
+  const group = rows => {
+    const result = new Map();
+    for (const row of rows) {
+      const key = row.ecosystem + '\0' + row.name;
+      if (!result.has(key)) result.set(key, []);
+      result.get(key).push(row);
+    }
+    return result;
+  };
+  const before = group(baseline), after = group(current);
+  const changes = new Map(), removed = [];
+  for (const row of current) {
+    const previous = before.get(row.ecosystem + '\0' + row.name);
+    changes.set(row.key, !previous ? 'added' : previous.some(item => item.version === row.version) ? 'unchanged' : 'changed');
+  }
+  for (const row of baseline) {
+    const versions = after.get(row.ecosystem + '\0' + row.name);
+    if (!versions?.some(item => item.version === row.version)) {
+      removed.push({ ecosystem: row.ecosystem, name: row.name, version: row.version,
+        status: versions ? 'version removed' : 'package removed' });
+    }
+  }
+  return { changes, removed };
+}
