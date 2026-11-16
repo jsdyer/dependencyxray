@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Review exact package versions from Composer, npm and Python lockfiles before checking OSV.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://api.osv.dev https://api.deps.dev https://repo.packagist.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Dependency X-Ray · CoolCode</title>
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.mjs"></script>
+</head>
+<body>
+<header class="mast"><nav class="wrap nav" aria-label="Main"><a class="brand" href="https://coolcode.ca/">$_ CoolCode.ca</a><a href="https://coolcode.ca/patchsignal/">Patch Signal ↗</a></nav>
+<div class="wrap hero"><h1>Dependency <span>X-Ray</span></h1><p>Read a lockfile in your browser, review the exact versions, and check selected package versions against OSV advisories.</p></div></header>
+<main class="wrap stack" id="main">
+<section class="panel stack" aria-labelledby="open-title">
+<div class="row spread"><h2 id="open-title">Open a dependency file</h2><button id="sample">Try sample inventory</button></div>
+<label class="field">Select a file<input id="file" type="file" accept=".json,.lock,.txt"></label>
+<p class="muted">Supports <code>composer.lock</code>, npm <code>package-lock.json</code>, <code>Pipfile.lock</code>, and pinned <code>requirements.txt</code>. Exact pins in Composer and npm manifests also work. File limit 4 MiB.</p>
+<details><summary>Paste manifest text</summary><form id="paste" class="stack" autocomplete="off"><label class="field">Manifest or requirements text<textarea name="text" maxlength="4194304"></textarea></label><button>Read locally</button></form></details>
+<p id="open-status" class="status" role="status">Opening a file does not contact a package service.</p>
+</section>
+<section class="panel stack" id="inventory" aria-labelledby="inventory-title" hidden>
+<div class="row spread"><h2 id="inventory-title">Package inventory</h2><span class="badge" id="inventory-count"></span></div>
+<p class="muted">Review the rows and exclude private packages before scanning. OSV receives the selected package names, ecosystems, and exact versions. Release checks contact the selected registry separately.</p>
+<div class="row spread"><div class="row"><button id="scan" class="primary">Check selected on OSV</button><button id="cancel" hidden>Cancel lookup</button></div><button id="export">Download local report</button></div>
+<p class="status" id="scan-status" role="status"></p>
+<div class="row">
+<label class="field">Filter exact packages<input type="search" id="filter" maxlength="100" placeholder="laravel, npm or 4.17"></label>
+<label class="field">Finding<select id="finding"><option value="">All findings</option><option value="vulnerable">Advisory matches</option><option value="checked">No OSV matches</option><option value="unchecked">Awaiting lookup</option></select></label>
+</div>
+<div class="row"><button id="select-filtered">Select filtered</button><button id="deselect-filtered">Deselect filtered</button><span id="filtered-count" class="muted"></span></div>
+<div class="table" tabindex="0" aria-label="Installed package versions"><table><thead><tr><th scope="col">Send to OSV</th><th scope="col">Package version</th><th scope="col">Advisories</th><th scope="col">Release</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div id="pagination" class="row spread" hidden><button id="previous">Previous</button><span id="page" class="muted"></span><button id="next">Next</button></div>
+</section>
+<section class="panel stack" aria-labelledby="method-title"><h2 id="method-title">What the results cover</h2>
+<p>Lookups use the exact versions in the input. Version ranges, local paths and unsupported tags are skipped. Environment markers and lockfile platform variants are not resolved, so the inventory may include packages for another target.</p>
+<p class="muted">An OSV match identifies a published advisory for that version. Check affected configuration and fixed versions in the source advisory. A missing match means the query returned no advisory.</p>
+</section>
+</main>
+<footer class="wrap foot"><a href="https://google.github.io/osv.dev/post-v1-querybatch/">OSV batch API</a><a href="https://docs.deps.dev/api/v3/">deps.dev API</a><a href="https://packagist.org/apidoc">Packagist API</a><a href="https://github.com/jsdyer/dependencyxray">Source repository</a></footer>
+</body>
+</html>
