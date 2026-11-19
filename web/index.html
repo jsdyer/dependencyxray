@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Review exact package versions from Composer, npm and Python lockfiles before checking OSV.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://api.osv.dev https://api.deps.dev https://packagist.org; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.osv.dev https://api.deps.dev https://packagist.org; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Dependency X-Ray · CoolCode</title>
 <link rel="stylesheet" href="style.css">
 <script type="module" src="app.mjs"></script>
@@ -14,7 +14,8 @@
 <div class="wrap hero"><h1>Dependency <span>X-Ray</span></h1><p>Read a lockfile in your browser, review the exact versions, and check selected package versions against OSV advisories.</p></div></header>
 <main class="wrap stack" id="main">
 <section class="panel stack" aria-labelledby="open-title">
-<div class="row spread"><h2 id="open-title">Open a dependency file</h2><button id="sample">Try sample inventory</button></div>
+<div class="row spread"><h2 id="open-title">Open a dependency file</h2><button id="pip-comparison">Compare two pip releases</button></div>
+<p class="muted">Compare the dependency versions bundled with <a href="https://github.com/pypa/pip/blob/a52069365063ea813fe3a3f8bac90397c9426d35/src/pip/_vendor/vendor.txt">pip 25.3</a> and <a href="https://github.com/pypa/pip/blob/191854fba83d1c69534f974564af85632372d995/src/pip/_vendor/vendor.txt">pip 26.3</a>, or choose your own dependency file.</p>
 <label class="field">Select a file<input id="file" type="file" accept=".json,.lock,.txt"></label>
 <p class="muted">Supports <code>composer.lock</code>, npm <code>package-lock.json</code>, <code>Pipfile.lock</code>, and pinned <code>requirements.txt</code>. Exact pins in Composer and npm manifests also work. File limit 4 MiB.</p>
 <details><summary>Paste manifest text</summary><form id="paste" class="stack" autocomplete="off"><label class="field">Manifest or requirements text<textarea name="text" maxlength="4194304"></textarea></label><button>Read locally</button></form></details>

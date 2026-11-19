@@ -6,6 +6,11 @@ Supported inputs include `composer.lock`, npm v1–v3 `package-lock.json`, `Pipf
 
 Files are parsed in the browser. Selecting **Check selected on OSV** sends only the explicitly selected package names, ecosystems and exact versions to [OSV querybatch](https://google.github.io/osv.dev/post-v1-querybatch/). The screen shows request coverage, failures and advisories. Cancelled scans preserve completed results. **Check release** sends a single package name to [deps.dev](https://docs.deps.dev/api/v3/) for npm or PyPI, or [Packagist's metadata endpoint](https://packagist.org/apidoc) for Composer packages. The release comparison reports older numeric pins where both sides can be compared reliably. Rich platform compatibility and recommended upgrade paths require a package manager.
 
-The sample includes three historically affected versions, and opening it is local. Source advisories link to OSV. Reports download locally as JSON. A lack of known OSV matches does not determine whether a package is safe.
+The built-in comparison reads the Python Packaging Authority’s original vendor manifests for [pip 25.3](https://github.com/pypa/pip/blob/a52069365063ea813fe3a3f8bac90397c9426d35/src/pip/_vendor/vendor.txt) and [pip 26.3](https://github.com/pypa/pip/blob/191854fba83d1c69534f974564af85632372d995/src/pip/_vendor/vendor.txt). The two unchanged text files are distributed with [pip’s MIT licence](web/sources/PIP-LICENSE.txt). The comparison runs in the browser using the same requirements parser as file uploads. Source advisories link to OSV. Reports download locally as JSON. A lack of known OSV matches does not determine whether a package is safe.
 
 To compare a newer inventory against an earlier lockfile, open the newer file first and select the earlier file under **Compare with an earlier lockfile**. The browser shows added packages, newly present versions, unchanged versions, and earlier versions no longer present. Coexisting versions are tracked separately. The JSON report includes the comparison and the number of skipped earlier entries. Both inputs must use the same supported format. Version changes do not imply that an upgrade is compatible or safe.
+
+
+<!-- coolcode:guide -->
+Compare pip 25.3 and 26.3, then filter for unchanged versions or inspect earlier versions no longer present. The package lists record what pip bundled in each release.
+<!-- /coolcode:guide -->

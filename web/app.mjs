@@ -230,8 +230,9 @@ async function scan() {
 function exportReport() {
   const blob = new Blob([JSON.stringify({
     format: inventory.format, scannedAt: scanAt, skipped: inventory.skipped,
+    ...(inventory.source ? { source: inventory.source } : {}),
     packages: inventory.packages.map(({key,...row})=>({...row,advisories:results.get(key) ?? null,registryRelease:releases.get(key)?.version ?? null})),
-    comparison: comparison ? {baselineFormat:baseline.format, baselineSkipped:baseline.skipped,
+    comparison: comparison ? {baselineFormat:baseline.format, ...(baseline.source ? { baselineSource: baseline.source } : {}), baselineSkipped:baseline.skipped,
       currentVersions:inventory.packages.map(row=>({ecosystem:row.ecosystem,name:row.name,version:row.version,status:comparison.changes.get(row.key)})),
       removedVersions:comparison.removed} : null,
   },null,2)], {type:'application/json'});
@@ -242,6 +243,27 @@ function exportReport() {
   a.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
+function useBaseline(next) {
+  if (!next.packages.length) throw new Error('The earlier file has no supported exact versions.');
+  if (next.format !== inventory.format) throw new Error('Use the same file format for both inventories.');
+  baseline = next;
+  comparison = compareInventories(inventory.packages, baseline.packages);
+  const counts = [...comparison.changes.values()].reduce((total, status) => {
+    total[status] = (total[status] ?? 0) + 1;
+    return total;
+  }, {});
+  report('baseline-status', `${counts.added ?? 0} new packages · ${counts.changed ?? 0} new versions · ${counts.unchanged ?? 0} unchanged versions · ${comparison.removed.length} earlier versions no longer present. Earlier file skipped ${baseline.skipped} entries.`);
+  const details = node('details');
+  details.append(node('summary', 'Earlier versions no longer present (' + comparison.removed.length + ')'));
+  const list = node('ul', undefined, 'list');
+  for (const row of comparison.removed) list.append(node('li', row.ecosystem + ' · ' + row.name + ' ' + row.version + ' · ' + row.status));
+  details.append(list);
+  $('baseline-removed').replaceChildren(details);
+  $('change-filter').disabled = false;
+  page = 0;
+  render();
+}
+
 let fileRead = 0;
 $('baseline-file').addEventListener('change', async event => {
   const file = event.target.files[0], attempt = ++baselineRead;
@@ -256,24 +278,7 @@ $('baseline-file').addEventListener('change', async event => {
     const text = await file.text();
     if (attempt !== baselineRead) return;
     const next = parseInventory(text, file.name);
-    if (!next.packages.length) throw new Error('The earlier file has no supported exact versions.');
-    if (next.format !== inventory.format) throw new Error('Use the same file format for both inventories.');
-    baseline = next;
-    comparison = compareInventories(inventory.packages, baseline.packages);
-    const counts = [...comparison.changes.values()].reduce((total, status) => {
-      total[status] = (total[status] ?? 0) + 1;
-      return total;
-    }, {});
-    report('baseline-status', `${counts.added ?? 0} new packages · ${counts.changed ?? 0} new versions · ${counts.unchanged ?? 0} unchanged versions · ${comparison.removed.length} earlier versions no longer present. Earlier file skipped ${baseline.skipped} entries.`);
-    const details = node('details');
-    details.append(node('summary', 'Earlier versions no longer present (' + comparison.removed.length + ')'));
-    const list = node('ul', undefined, 'list');
-    for (const row of comparison.removed) list.append(node('li', row.ecosystem + ' · ' + row.name + ' ' + row.version + ' · ' + row.status));
-    details.append(list);
-    $('baseline-removed').replaceChildren(details);
-    $('change-filter').disabled = false;
-    page = 0;
-    render();
+    useBaseline(next);
   } catch (error) {
     if (attempt === baselineRead) report('baseline-status', error.message || 'The earlier file could not be read.', true);
   }
@@ -286,13 +291,26 @@ $('file').addEventListener('change',async event=>{
   catch { if (attempt === fileRead) report('open-status','The file could not be read.',true); }
 });
 $('paste').addEventListener('submit',event=>{event.preventDefault();fileRead++;load(event.currentTarget.elements.text.value);});
-$('sample').addEventListener('click',()=>{
-  fileRead++;
-  openInventory({format:'Curated sample',skipped:0,duplicate:0,packages:[
-    {ecosystem:'npm',name:'lodash',version:'4.17.20',scope:'Main'},
-    {ecosystem:'Packagist',name:'guzzlehttp/guzzle',version:'6.5.5',scope:'Main'},
-    {ecosystem:'PyPI',name:'urllib3',version:'1.26.4',scope:'Pinned'},
-  ].map(row=>({...row,key:[row.ecosystem,row.name,row.version].join('\0')}))});
+async function pipInventory(version) {
+  const response = await fetch(`./sources/pip-${version}-vendor.txt`);
+  if (!response.ok) throw new Error("The archived pip package list could not be opened.");
+  const result = parseInventory(await response.text(), 'requirements.txt');
+  result.source = `pip ${version} · src/pip/_vendor/vendor.txt`;
+  return result;
+}
+
+$('pip-comparison').addEventListener('click', async () => {
+  const attempt = ++fileRead;
+  report('open-status', 'Opening the two pip package lists…');
+  try {
+    const [earlier, current] = await Promise.all([pipInventory('25.3'), pipInventory('26.3')]);
+    if (attempt !== fileRead) return;
+    openInventory(current);
+    useBaseline(earlier);
+    report('open-status', `pip 26.3 · ${current.packages.length} pinned packages, compared with pip 25.3.`);
+  } catch (error) {
+    if (attempt === fileRead) report('open-status', error.message, true);
+  }
 });
 $('scan').addEventListener('click',scan);
 $('cancel').addEventListener('click',()=>scanTask?.abort());
